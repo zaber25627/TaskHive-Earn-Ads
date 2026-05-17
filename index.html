@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TaskHive Pro</title>
+    <title>TaskHive Pro - Earn Money</title>
     
-    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
-    <!-- Font Awesome & Google Fonts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -186,6 +184,9 @@
         .history-status.Pending { color: var(--warning); }
         .history-status.Completed { color: var(--success); }
         .history-status.Rejected { color: var(--danger); }
+        
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -193,7 +194,7 @@
 <div id="loader" class="loader-wrap">
     <div class="scan-container">
         <div class="scan-icon"><i class="fas fa-hive"></i></div>
-        <div id="scanText" class="scan-text">[ TaskHive Pro ]<br>INITIALIZING...</div>
+        <div id="scanText" class="scan-text">[ TaskHive Pro ]<br>CONNECTING TO SECURE SERVER...</div>
         <div class="scan-bar-bg"><div id="scanBar" class="scan-bar-fill"></div></div>
     </div>
 </div>
@@ -279,7 +280,7 @@
         <div class="profile-hero"><img id="pAvatar" class="prof-avatar"><h2 id="pName"></h2><p id="pUser" style="color: var(--primary);"></p><p style="font-size: 12px; color: var(--text-muted);">ID: <span id="pId"></span></p></div>
         <div class="profile-links-row">
             <a href="https://t.me/TaskHiveEarnOfficial" target="_blank" class="profile-link-card"><i class="fab fa-telegram"></i><span>Official Channel</span></a>
-            <a href="https://t.me/All_PaymentBot25" target="_blank" class="profile-link-card"><i class="fas fa-money-bill-wave"></i><span>Payment Admin</span></a>
+            <a href="https://t.me/Ads_payment_admin" target="_blank" class="profile-link-card"><i class="fas fa-money-bill-wave"></i><span>Payment Admin</span></a>
         </div>
         <div class="prof-stats-grid"><div class="prof-stat"><div class="stat-label">Total Earned</div><div class="stat-value gold" id="pTotEarn">0</div></div><div class="prof-stat"><div class="stat-label">Total Withdraw</div><div class="stat-value success" id="pTotWd">0</div></div><div class="prof-stat"><div class="stat-label">Referrals</div><div class="stat-value" id="pRefs">0</div></div></div>
         <div class="prof-menu"><div class="p-menu-btn" onclick="openPromo()"><div><i class="fas fa-gift text-gold"></i> Redeem Promo Code</div><i class="fas fa-chevron-right"></i></div></div>
@@ -291,6 +292,13 @@
 <div id="promoModal" class="overlay"><div class="modal-card"><i class="fas fa-times" style="position:absolute; top:20px; right:20px; cursor:pointer;" onclick="closePromo()"></i><i class="fas fa-gift" style="font-size: 50px; color: var(--gold); margin-bottom: 15px;"></i><h3>Redeem Code</h3><input type="text" id="promoInput" class="input-field" placeholder="Enter Code" style="margin: 15px 0;"><button class="btn-primary" onclick="submitPromoCode()">Apply</button></div></div>
 
 <script>
+    // ============= SUPABASE CONFIGURATION =============
+    // 👇 এখানে আপনার Supabase URL এবং anon key বসান
+    const SUPABASE_URL = "https://emkwrueeaypkorerrcoj.supabase.co";  // Change this!
+    const SUPABASE_ANON_KEY = "sb_publishable_v8Ar6kMinMRYKBRYZJcTog_sp2c-jcE";  // Change this!
+    
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     const BOT_USER = "TaskHiveEarnadsbot";
     const AD_REWARD = 0.05, DAILY_LIMIT = 50, MIN_WITHDRAW = 10, REF_REWARD = 1.00, WD_REQ_REFS = 5, WD_REQ_DAILY_ADS = 20;
     
@@ -300,24 +308,11 @@
         { name: "BD Task Community", username: "All_PaymentBot25", link: "https://t.me/All_PaymentBot25", icon: "fas fa-users" }
     ];
 
-    const DEFAULT_TASKS = [
-        { id: "task1", title: "Join Our Telegram Channel", reward: 0.50, link: "https://t.me/TaskHiveEarnOfficial" },
-        { id: "task2", title: "Follow on Twitter", reward: 0.75, link: "https://twitter.com" },
-        { id: "task3", title: "Subscribe on YouTube", reward: 1.00, link: "https://youtube.com" },
-        { id: "task4", title: "Share on Facebook", reward: 0.50, link: "https://facebook.com" }
-    ];
-
-    const PROMO_CODES = {
-        "WELCOME50": { reward: 5.00, limit: 100, uses: 0 },
-        "TASKHIVE10": { reward: 10.00, limit: 50, uses: 0 },
-        "BONUS25": { reward: 2.50, limit: 200, uses: 0 }
-    };
-
     let currentUser = {
-        id: "", name: "", username: "", balanceTaka: 0, totalEarnedTaka: 0, totalWithdrawnTaka: 0,
-        adsWatched: 0, refs: 0, refEarnedTaka: 0, referrer: null, lastAdDate: "", adsWatchedToday: 0,
-        completedTasks: [], usedGiftCodes: [], joined: false, joinedChannels: [], history: [],
-        tasks: []
+        id: "", name: "", username: "", balance: 0, total_earned: 0, total_withdrawn: 0,
+        ads_watched: 0, ads_watched_today: 0, refs: 0, ref_earned: 0, referrer: null,
+        last_ad_date: "", completed_tasks: [], used_gift_codes: [], joined_channels: [],
+        joined: false, banned: false
     };
     
     let adPlaying = false, adTimerInt = null;
@@ -333,29 +328,210 @@
     function fmt(n) { return parseFloat(n).toFixed(2); }
     function todayStr() { return new Date().toDateString(); }
 
-    function saveUser() {
-        localStorage.setItem(`taskhive_user_${currentUser.id}`, JSON.stringify(currentUser));
+    async function fetchUserData(userId) {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        if(error && error.code !== 'PGRST116') {
+            console.error("Error fetching user:", error);
+            return null;
+        }
+        return data;
     }
 
-    function loadUser(uid) {
-        let saved = localStorage.getItem(`taskhive_user_${uid}`);
-        if(saved) {
-            let data = JSON.parse(saved);
-            currentUser = { ...currentUser, ...data };
-            if(!currentUser.completedTasks) currentUser.completedTasks = [];
-            if(!currentUser.usedGiftCodes) currentUser.usedGiftCodes = [];
-            if(!currentUser.joinedChannels) currentUser.joinedChannels = [];
-            if(!currentUser.history) currentUser.history = [];
-            if(!currentUser.tasks) currentUser.tasks = [...DEFAULT_TASKS];
+    async function createUser(userId, name, username, referrerId = null) {
+        const newUser = {
+            id: userId,
+            name: name,
+            username: username,
+            balance: 0,
+            total_earned: 0,
+            total_withdrawn: 0,
+            ads_watched: 0,
+            ads_watched_today: 0,
+            refs: 0,
+            ref_earned: 0,
+            referrer: referrerId,
+            last_ad_date: todayStr(),
+            completed_tasks: [],
+            used_gift_codes: [],
+            joined_channels: [],
+            joined: false,
+            banned: false
+        };
+        
+        const { error } = await supabase.from('users').insert([newUser]);
+        if(error) {
+            console.error("Error creating user:", error);
+            return null;
         }
-        if(currentUser.lastAdDate !== todayStr()) {
-            currentUser.adsWatchedToday = 0;
-            currentUser.lastAdDate = todayStr();
-            saveUser();
-        }
+        return newUser;
     }
 
-    function syncUI() {
+    async function updateUser(userId, updates) {
+        const { error } = await supabase
+            .from('users')
+            .update(updates)
+            .eq('id', userId);
+        
+        if(error) console.error("Error updating user:", error);
+        return !error;
+    }
+
+    async function addWithdrawal(userId, amount, method, account) {
+        const { error } = await supabase
+            .from('withdrawals')
+            .insert([{
+                user_id: userId,
+                amount: amount,
+                method: method,
+                account: account,
+                status: 'Pending',
+                date: new Date()
+            }]);
+        
+        if(error) console.error("Error adding withdrawal:", error);
+        return !error;
+    }
+
+    async function fetchWithdrawals(userId) {
+        const { data, error } = await supabase
+            .from('withdrawals')
+            .select('*')
+            .eq('user_id', userId)
+            .order('date', { ascending: false });
+        
+        if(error) {
+            console.error("Error fetching withdrawals:", error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async function fetchTasks() {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('active', true);
+        
+        if(error) {
+            console.error("Error fetching tasks:", error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async function redeemGiftCode(userId, code) {
+        // Check if code exists and has uses left
+        const { data: giftData, error: giftError } = await supabase
+            .from('gift_codes')
+            .select('*')
+            .eq('code', code)
+            .eq('active', true)
+            .single();
+        
+        if(giftError || !giftData) return { success: false, message: "Invalid code" };
+        if(giftData.used_count >= giftData.max_uses) return { success: false, message: "Code expired" };
+        
+        // Update user balance
+        const { data: userData } = await supabase
+            .from('users')
+            .select('balance, total_earned, used_gift_codes')
+            .eq('id', userId)
+            .single();
+        
+        if(userData.used_gift_codes && userData.used_gift_codes.includes(code)) {
+            return { success: false, message: "Already used this code" };
+        }
+        
+        const newUsedCodes = [...(userData.used_gift_codes || []), code];
+        
+        await supabase
+            .from('users')
+            .update({
+                balance: userData.balance + giftData.reward,
+                total_earned: userData.total_earned + giftData.reward,
+                used_gift_codes: newUsedCodes
+            })
+            .eq('id', userId);
+        
+        await supabase
+            .from('gift_codes')
+            .update({ used_count: giftData.used_count + 1 })
+            .eq('code', code);
+        
+        return { success: true, reward: giftData.reward };
+    }
+
+    async function loadUserAndSync() {
+        let tg = window.Telegram.WebApp;
+        let tgu = tg.initDataUnsafe?.user;
+        let uid = tgu ? tgu.id.toString() : "demo_" + Math.floor(Math.random() * 100000);
+        let unm = tgu ? tgu.first_name : "User";
+        let uusr = tgu ? (tgu.username || uid) : uid;
+        let sparam = tg.initDataUnsafe?.start_param;
+        
+        let userData = await fetchUserData(uid);
+        
+        if(!userData) {
+            let referrerId = (sparam && sparam !== uid) ? sparam : null;
+            
+            // Give referral reward if exists
+            if(referrerId) {
+                let referrerData = await fetchUserData(referrerId);
+                if(referrerData && !referrerData.banned) {
+                    await updateUser(referrerId, {
+                        refs: (referrerData.refs || 0) + 1,
+                        ref_earned: (referrerData.ref_earned || 0) + REF_REWARD,
+                        balance: (referrerData.balance || 0) + REF_REWARD
+                    });
+                }
+            }
+            
+            userData = await createUser(uid, unm, uusr, referrerId);
+        }
+        
+        if(userData) {
+            currentUser = {
+                id: userData.id,
+                name: userData.name,
+                username: userData.username,
+                balance: userData.balance || 0,
+                total_earned: userData.total_earned || 0,
+                total_withdrawn: userData.total_withdrawn || 0,
+                ads_watched: userData.ads_watched || 0,
+                ads_watched_today: userData.ads_watched_today || 0,
+                refs: userData.refs || 0,
+                ref_earned: userData.ref_earned || 0,
+                referrer: userData.referrer,
+                last_ad_date: userData.last_ad_date || "",
+                completed_tasks: userData.completed_tasks || [],
+                used_gift_codes: userData.used_gift_codes || [],
+                joined_channels: userData.joined_channels || [],
+                joined: userData.joined || false,
+                banned: userData.banned || false
+            };
+            
+            // Reset daily ads if new day
+            if(currentUser.last_ad_date !== todayStr()) {
+                currentUser.ads_watched_today = 0;
+                currentUser.last_ad_date = todayStr();
+                await updateUser(currentUser.id, { ads_watched_today: 0, last_ad_date: todayStr() });
+            }
+        }
+        
+        return currentUser;
+    }
+
+    async function syncUI() {
+        if(currentUser.banned) {
+            document.getElementById('mainApp').innerHTML = `<div class="banned-badge" style="background: var(--danger); color: white; padding: 20px; text-align: center; margin: 20px; border-radius: 16px;"><i class="fas fa-ban"></i> Account Banned! Contact support.</div>`;
+            return;
+        }
+        
         let av = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=8B5CF6&color=fff&bold=true`;
         document.getElementById('hAvatar').src = av;
         document.getElementById('pAvatar').src = av;
@@ -363,45 +539,63 @@
         document.getElementById('pName').innerText = currentUser.name;
         document.getElementById('pUser').innerText = `@${currentUser.username}`;
         document.getElementById('pId').innerText = currentUser.id;
-        document.getElementById('hBal').innerText = fmt(currentUser.balanceTaka);
-        document.getElementById('wBal').innerText = fmt(currentUser.balanceTaka);
-        document.getElementById('hDailyEarn').innerText = fmt(currentUser.adsWatchedToday * AD_REWARD);
-        document.getElementById('hTotalEarn').innerText = fmt(currentUser.totalEarnedTaka);
-        document.getElementById('pTotEarn').innerText = fmt(currentUser.totalEarnedTaka);
-        document.getElementById('pTotWd').innerText = fmt(currentUser.totalWithdrawnTaka);
+        document.getElementById('hBal').innerText = fmt(currentUser.balance);
+        document.getElementById('wBal').innerText = fmt(currentUser.balance);
+        document.getElementById('hDailyEarn').innerText = fmt(currentUser.ads_watched_today * AD_REWARD);
+        document.getElementById('hTotalEarn').innerText = fmt(currentUser.total_earned);
+        document.getElementById('pTotEarn').innerText = fmt(currentUser.total_earned);
+        document.getElementById('pTotWd').innerText = fmt(currentUser.total_withdrawn);
         document.getElementById('pRefs').innerText = currentUser.refs;
-        document.getElementById('adCurr').innerText = currentUser.adsWatchedToday;
+        document.getElementById('adCurr').innerText = currentUser.ads_watched_today;
         document.getElementById('adMax').innerText = DAILY_LIMIT;
-        document.getElementById('adBar').style.width = Math.min((currentUser.adsWatchedToday/DAILY_LIMIT)*100,100)+"%";
+        document.getElementById('adBar').style.width = Math.min((currentUser.ads_watched_today/DAILY_LIMIT)*100,100)+"%";
+        
         let refLink = `https://t.me/${BOT_USER}/app?startapp=${currentUser.id}`;
         document.getElementById('refLinkTxt').innerText = refLink;
         document.getElementById('rTotalCount').innerText = currentUser.refs;
-        document.getElementById('rTotalEarn').innerText = fmt(currentUser.refEarnedTaka);
+        document.getElementById('rTotalEarn').innerText = fmt(currentUser.ref_earned);
     }
 
     window.watchAd = () => {
         if(adPlaying) return toast("Ad in progress...");
-        if(currentUser.adsWatchedToday >= DAILY_LIMIT) return toast("Daily limit reached!");
+        if(currentUser.ads_watched_today >= DAILY_LIMIT) return toast("Daily limit reached!");
+        if(currentUser.banned) return toast("Account banned!");
+        
         adPlaying = true;
         document.getElementById('btnWatchAd').style.display = 'none';
         let tmr = document.getElementById('adTimer');
         tmr.style.display = 'block';
         let t = 10;
         tmr.innerText = `00:${t}`;
+        
         if(adTimerInt) clearInterval(adTimerInt);
-        adTimerInt = setInterval(() => {
+        adTimerInt = setInterval(async () => {
             t--;
             tmr.innerText = t<10 ? `00:0${t}` : `00:${t}`;
             if(t<=0){
                 clearInterval(adTimerInt);
                 tmr.style.display='none';
                 document.getElementById('btnWatchAd').style.display='block';
-                currentUser.balanceTaka += AD_REWARD;
-                currentUser.totalEarnedTaka += AD_REWARD;
-                currentUser.adsWatched++;
-                currentUser.adsWatchedToday++;
-                currentUser.lastAdDate = todayStr();
-                saveUser();
+                
+                let newBalance = currentUser.balance + AD_REWARD;
+                let newTotalEarned = currentUser.total_earned + AD_REWARD;
+                let newAdsWatched = currentUser.ads_watched + 1;
+                let newAdsToday = currentUser.ads_watched_today + 1;
+                
+                await updateUser(currentUser.id, {
+                    balance: newBalance,
+                    total_earned: newTotalEarned,
+                    ads_watched: newAdsWatched,
+                    ads_watched_today: newAdsToday,
+                    last_ad_date: todayStr()
+                });
+                
+                currentUser.balance = newBalance;
+                currentUser.total_earned = newTotalEarned;
+                currentUser.ads_watched = newAdsWatched;
+                currentUser.ads_watched_today = newAdsToday;
+                currentUser.last_ad_date = todayStr();
+                
                 syncUI();
                 toast(`+${AD_REWARD} BDT Earned!`);
                 adPlaying=false;
@@ -409,13 +603,19 @@
         }, 1000);
     };
 
-    window.loadTasks = () => {
+    window.loadTasks = async () => {
+        let tasks = await fetchTasks();
         let container = document.getElementById('tasksContainer');
-        if(!currentUser.tasks) currentUser.tasks = [...DEFAULT_TASKS];
-        let completed = currentUser.completedTasks || [];
+        let completed = currentUser.completed_tasks || [];
+        
+        if(tasks.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center" style="padding:20px;">No tasks available</div>';
+            return;
+        }
+        
         let html = '';
-        currentUser.tasks.forEach(task => {
-            let isCompleted = completed.includes(task.id);
+        tasks.forEach(task => {
+            let isCompleted = completed.includes(task.id.toString());
             html += `<div class="task-item">
                         <div class="task-icon-box"><i class="fas fa-bolt"></i></div>
                         <div class="task-info">
@@ -441,14 +641,23 @@
         toast("Complete the task, then click Verify!");
     };
 
-    window.verifyTask = (id, reward) => {
-        let completed = currentUser.completedTasks || [];
-        if(!completed.includes(id)){
-            completed.push(id);
-            currentUser.completedTasks = completed;
-            currentUser.balanceTaka += reward;
-            currentUser.totalEarnedTaka += reward;
-            saveUser();
+    window.verifyTask = async (id, reward) => {
+        let completed = currentUser.completed_tasks || [];
+        if(!completed.includes(id.toString())){
+            completed.push(id.toString());
+            let newBalance = currentUser.balance + reward;
+            let newTotalEarned = currentUser.total_earned + reward;
+            
+            await updateUser(currentUser.id, {
+                balance: newBalance,
+                total_earned: newTotalEarned,
+                completed_tasks: completed
+            });
+            
+            currentUser.balance = newBalance;
+            currentUser.total_earned = newTotalEarned;
+            currentUser.completed_tasks = completed;
+            
             syncUI();
             loadTasks();
             toast(`+${reward} BDT Verified!`);
@@ -462,37 +671,32 @@
         document.getElementById('wAcc').placeholder = `${m} Account Number`;
     };
 
-    window.reqWd = () => {
+    window.reqWd = async () => {
         let amt = parseFloat(document.getElementById('wAmt').value);
         let acc = document.getElementById('wAcc').value.trim();
+        
         if(!amt || !acc) return toast("Fill all fields");
         if(amt < MIN_WITHDRAW) return toast(`Min ${MIN_WITHDRAW} BDT`);
-        if(amt > currentUser.balanceTaka) return toast("Insufficient balance");
+        if(amt > currentUser.balance) return toast("Insufficient balance");
         if(currentUser.refs < WD_REQ_REFS) return toast(`Need ${WD_REQ_REFS} referrals (You have ${currentUser.refs})`);
-        if(currentUser.adsWatchedToday < WD_REQ_DAILY_ADS) return toast(`Watch ${WD_REQ_DAILY_ADS} ads today (Watched: ${currentUser.adsWatchedToday})`);
+        if(currentUser.ads_watched_today < WD_REQ_DAILY_ADS) return toast(`Watch ${WD_REQ_DAILY_ADS} ads today (Watched: ${currentUser.ads_watched_today})`);
         
-        let newBalance = currentUser.balanceTaka - amt;
-        let newTotalWithdrawn = currentUser.totalWithdrawnTaka + amt;
-        let dateObj = new Date();
-        let dateStr = dateObj.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + ' ' + dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        let newBalance = currentUser.balance - amt;
+        let newTotalWithdrawn = currentUser.total_withdrawn + amt;
         
-        let historyItem = {
-            amount: amt,
-            method: selectedMethod,
-            account: acc,
-            status: "Pending",
-            date: dateStr
-        };
+        await updateUser(currentUser.id, {
+            balance: newBalance,
+            total_withdrawn: newTotalWithdrawn
+        });
         
-        if(!currentUser.history) currentUser.history = [];
-        currentUser.history.unshift(historyItem);
-        currentUser.balanceTaka = newBalance;
-        currentUser.totalWithdrawnTaka = newTotalWithdrawn;
-        saveUser();
-        syncUI();
+        await addWithdrawal(currentUser.id, amt, selectedMethod, acc);
+        
+        currentUser.balance = newBalance;
+        currentUser.total_withdrawn = newTotalWithdrawn;
         
         document.getElementById('wAmt').value = '';
         document.getElementById('wAcc').value = '';
+        syncUI();
         
         let notif = document.getElementById('withdrawNotification');
         document.getElementById('notifMsg').innerHTML = `🎉 ${fmt(amt)} BDT withdrawal requested via ${selectedMethod}. <strong>Pending approval.</strong><br>You will receive payment within <strong>1-24 hours</strong>.`;
@@ -503,22 +707,25 @@
         if(document.getElementById('wdHistoryPanel').style.display === 'block') loadHistory();
     };
 
-    window.loadHistory = () => {
+    window.loadHistory = async () => {
+        let withdrawals = await fetchWithdrawals(currentUser.id);
         let container = document.getElementById('historyList');
-        let history = currentUser.history || [];
-        if(history.length === 0) {
+        
+        if(withdrawals.length === 0) {
             container.innerHTML = '<div class="text-muted text-center">No withdrawal history</div>';
             return;
         }
+        
         let html = '';
-        history.forEach(h => {
-            let statusClass = `history-status ${h.status}`;
-            let borderColor = h.status === 'Completed' ? 'var(--success)' : (h.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)');
+        withdrawals.forEach(w => {
+            let statusClass = `history-status ${w.status}`;
+            let borderColor = w.status === 'Completed' ? 'var(--success)' : (w.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)');
+            let dateStr = new Date(w.date).toLocaleString('en-GB', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
             html += `<div class="history-item" style="border-left-color: ${borderColor}">
-                        <div><div class="font-bold">${h.amount} BDT</div>
-                        <div class="text-sm text-muted">${h.method} | ${h.account}</div>
-                        <div class="text-sm text-muted">${h.date}</div></div>
-                        <div class="${statusClass}">${h.status || 'Pending'}</div>
+                        <div><div class="font-bold">${w.amount} BDT</div>
+                        <div class="text-sm text-muted">${w.method} | ${w.account}</div>
+                        <div class="text-sm text-muted">${dateStr}</div></div>
+                        <div class="${statusClass}">${w.status || 'Pending'}</div>
                     </div>`;
         });
         container.innerHTML = html;
@@ -547,30 +754,28 @@
     window.openPromo = () => document.getElementById('promoModal').classList.add('active');
     window.closePromo = () => document.getElementById('promoModal').classList.remove('active');
 
-    window.submitPromoCode = () => {
+    window.submitPromoCode = async () => {
         let code = document.getElementById('promoInput').value.trim().toUpperCase();
         if(!code) return toast("Enter code");
-        let used = currentUser.usedGiftCodes || [];
-        if(used.includes(code)) return toast("Already used");
-        let promo = PROMO_CODES[code];
-        if(!promo) return toast("Invalid code");
-        if(promo.uses >= promo.limit) return toast("Code limit reached");
         
-        promo.uses++;
-        used.push(code);
-        currentUser.usedGiftCodes = used;
-        currentUser.balanceTaka += promo.reward;
-        currentUser.totalEarnedTaka += promo.reward;
-        saveUser();
-        syncUI();
-        toast(`+${promo.reward} BDT Added!`);
-        closePromo();
-        document.getElementById('promoInput').value = '';
+        let result = await redeemGiftCode(currentUser.id, code);
+        if(result.success) {
+            currentUser.balance += result.reward;
+            currentUser.total_earned += result.reward;
+            if(!currentUser.used_gift_codes) currentUser.used_gift_codes = [];
+            currentUser.used_gift_codes.push(code);
+            syncUI();
+            toast(`+${result.reward} BDT Added!`);
+            closePromo();
+            document.getElementById('promoInput').value = '';
+        } else {
+            toast(result.message);
+        }
     };
 
     function renderChannels() {
         let container = document.getElementById('channelsList');
-        let joined = currentUser.joinedChannels || [];
+        let joined = currentUser.joined_channels || [];
         let html = '';
         REQUIRED_CHANNELS.forEach(ch => {
             let isJoined = joined.includes(ch.username);
@@ -588,7 +793,7 @@
         container.innerHTML = html;
         
         document.querySelectorAll('.join-channel-btn:not(.joined)').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', async (e) => {
                 if(btn.classList.contains('joined') || btn.classList.contains('verifying')) return;
                 let chanUsername = btn.getAttribute('data-chan');
                 let link = btn.getAttribute('data-link');
@@ -596,18 +801,18 @@
                 toast(`📢 Please join @${chanUsername}, then click Join again after 5 seconds...`);
                 btn.classList.add('verifying');
                 btn.innerHTML = '⏳ Wait 5s';
-                setTimeout(() => {
-                    let joinedList = currentUser.joinedChannels || [];
+                setTimeout(async () => {
+                    let joinedList = currentUser.joined_channels || [];
                     if(!joinedList.includes(chanUsername)) {
                         joinedList.push(chanUsername);
-                        currentUser.joinedChannels = joinedList;
-                        saveUser();
+                        await updateUser(currentUser.id, { joined_channels: joinedList });
+                        currentUser.joined_channels = joinedList;
                         btn.classList.remove('verifying');
                         btn.classList.add('joined');
                         btn.innerHTML = '✅ Joined';
                         toast(`✅ Verified @${chanUsername}!`);
                         updateFinalJoinButton();
-                        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+                        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joined_channels || []).includes(ch.username));
                         if(allJoined) {
                             toast("🎉 All channels joined! Redirecting...");
                             setTimeout(() => proceedToMainApp(), 1500);
@@ -621,15 +826,15 @@
 
     function updateFinalJoinButton() {
         let finalBtn = document.getElementById('finalJoinBtn');
-        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joined_channels || []).includes(ch.username));
         finalBtn.disabled = !allJoined;
         finalBtn.innerHTML = allJoined ? "✅ ALL CHANNELS JOINED! CONTINUE →" : "📢 JOIN ALL CHANNELS FIRST";
     }
 
-    function proceedToMainApp() {
+    async function proceedToMainApp() {
         if(!currentUser.joined) {
+            await updateUser(currentUser.id, { joined: true });
             currentUser.joined = true;
-            saveUser();
         }
         document.getElementById('channelsScreen').style.display = 'none';
         document.getElementById('mainApp').style.display = 'block';
@@ -639,7 +844,7 @@
     }
 
     document.getElementById('finalJoinBtn')?.addEventListener('click', () => {
-        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joined_channels || []).includes(ch.username));
         if(!allJoined) {
             toast("❌ Please join all channels first! Click each 'Join' button and wait for verification.");
             return;
@@ -660,7 +865,7 @@
 
     function doLoadingAnim(cb) {
         let p = 0;
-        let texts = ["[ TaskHive Pro ]", "CONNECTING TO SERVER", "LOADING USER DATA", "ACCESS GRANTED"];
+        let texts = ["[ TaskHive Pro ]", "CONNECTING TO SUPABASE", "LOADING USER DATA", "ACCESS GRANTED"];
         let int = setInterval(() => {
             p += 25;
             document.getElementById('scanBar').style.width = p + "%";
@@ -672,49 +877,19 @@
         }, 350);
     }
 
-    doLoadingAnim(() => {
+    doLoadingAnim(async () => {
         document.getElementById('loader').style.display = 'none';
         let tg = window.Telegram.WebApp;
         tg.expand();
         tg.ready();
-        let tgu = tg.initDataUnsafe?.user;
-        let uid = tgu ? tgu.id.toString() : "user_" + Math.floor(Math.random() * 100000);
-        let unm = tgu ? tgu.first_name : "User";
-        let uusr = tgu ? (tgu.username || uid) : uid;
-        let sparam = tg.initDataUnsafe?.start_param;
         
-        currentUser.id = uid;
-        currentUser.name = unm;
-        currentUser.username = uusr;
+        await loadUserAndSync();
         
-        loadUser(uid);
-        
-        if(!localStorage.getItem(`taskhive_user_${uid}`)) {
-            if(sparam && sparam !== uid) {
-                let referrerData = localStorage.getItem(`taskhive_user_${sparam}`);
-                if(referrerData) {
-                    let referrer = JSON.parse(referrerData);
-                    referrer.refs = (referrer.refs || 0) + 1;
-                    referrer.refEarnedTaka = (referrer.refEarnedTaka || 0) + REF_REWARD;
-                    referrer.balanceTaka = (referrer.balanceTaka || 0) + REF_REWARD;
-                    localStorage.setItem(`taskhive_user_${sparam}`, JSON.stringify(referrer));
-                }
-            }
-            currentUser.refs = 0;
-            currentUser.refEarnedTaka = 0;
-            currentUser.balanceTaka = 0;
-            currentUser.totalEarnedTaka = 0;
-            currentUser.totalWithdrawnTaka = 0;
-            currentUser.adsWatchedToday = 0;
-            currentUser.adsWatched = 0;
-            currentUser.completedTasks = [];
-            currentUser.usedGiftCodes = [];
-            currentUser.joinedChannels = [];
-            currentUser.joined = false;
-            currentUser.lastAdDate = todayStr();
-            currentUser.history = [];
-            currentUser.tasks = [...DEFAULT_TASKS];
-            saveUser();
+        if(currentUser.banned) {
+            document.getElementById('channelsScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('mainApp').innerHTML = `<div style="background: var(--danger); color: white; padding: 20px; text-align: center; margin: 20px; border-radius: 16px;"><i class="fas fa-ban"></i> Your account has been banned! Contact @Ads_payment_admin</div>`;
+            return;
         }
         
         if(!currentUser.joined) {
