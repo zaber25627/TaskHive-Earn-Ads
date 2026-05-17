@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TaskHive Pro</title>
+    
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Font Awesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #0B0A10;
+            --bg-card: #131126;
+            --primary: #8B5CF6;
+            --primary-dark: #6D28D9;
+            --text-main: #FFFFFF;
+            --text-muted: #94A3B8;
+            --gold: #FBBF24;
+            --success: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --border-light: rgba(139, 92, 246, 0.15);
+            --border-highlight: rgba(139, 92, 246, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-main);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background-image: radial-gradient(circle at top right, #1a1736 0%, var(--bg-main) 50%);
+            background-attachment: fixed;
+            padding-bottom: 90px;
+        }
+
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .text-gold { color: var(--gold); }
+        .text-muted { color: var(--text-muted); }
+        .text-sm { font-size: 13px; }
+        .font-bold { font-weight: 700; }
+
+        .screen { display: none; animation: fadeUp 0.3s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .app-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .user-profile-sm { display: flex; align-items: center; gap: 12px; }
+        .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-highlight); background: var(--bg-card);}
+        .user-name-title { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+        .level-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted); }
+        .level-badge span { background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: 600;}
+
+        .page-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; font-size: 18px; font-weight: 600; }
+        .btn-back { background: transparent; border: none; color: var(--text-main); font-size: 18px; cursor: pointer; padding: 5px; }
+
+        .card { background: var(--bg-card); border-radius: 20px; padding: 20px; border: 1px solid var(--border-light); }
+
+        .balance-hero { background: linear-gradient(135deg, rgba(20, 18, 40, 0.8), rgba(11, 10, 18, 0.9)); border-radius: 24px; padding: 24px; margin: 0 20px 20px; border: 1px solid var(--border-highlight); position: relative; overflow: hidden; }
+        .bal-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+        .bal-amount { font-size: 34px; font-weight: 800; display: flex; align-items: baseline; gap: 6px;}
+        .bal-currency { font-size: 16px; font-weight: 500; color: var(--text-muted); }
+        .wallet-icon-3d { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 60px; color: var(--primary); opacity: 0.8;}
+
+        .stats-dual { display: flex; gap: 15px; margin: 0 20px 20px; }
+        .stat-box { flex: 1; padding: 18px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .stat-box-left { display: flex; flex-direction: column; }
+        .stat-box-title { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+        .stat-box-val { font-size: 18px; font-weight: 700; }
+        
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 20px 20px; }
+        .grid-item { background: var(--bg-card); border-radius: 16px; padding: 16px 5px; text-align: center; border: 1px solid var(--border-light); cursor: pointer; transition: 0.2s; }
+        .grid-item i { font-size: 24px; color: var(--primary); margin-bottom: 8px; }
+        .grid-item span { font-size: 12px; font-weight: 500; display: block; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 75px; background: rgba(11, 10, 16, 0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--border-light); display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 24px 24px 0 0; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; cursor: pointer; width: 60px;}
+        .nav-item i { font-size: 22px; transition: 0.2s;}
+        .nav-item.active { color: var(--primary); }
+
+        .btn-primary { width: 100%; padding: 16px; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); color: white; border: none; border-radius: 16px; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-large { display: block; width: calc(100% - 40px); margin: 30px auto; background: linear-gradient(to right, var(--primary), var(--primary-dark)); color: white; padding: 18px; border: none; border-radius: 16px; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; }
+
+        .earn-hero-card { background: linear-gradient(135deg, rgba(30, 27, 75, 0.8), var(--bg-card)); border-radius: 20px; padding: 25px 20px; margin: 0 20px 25px; border: 1px solid var(--border-highlight); display: flex; justify-content: space-between; align-items: center; }
+        .earn-progress { margin: 0 20px 25px; }
+        .prog-bar-bg { height: 6px; background: #2A2744; border-radius: 3px; margin-top: 10px; }
+        .prog-bar-fill { height: 100%; background: var(--primary); border-radius: 3px; width: 0%; }
+
+        .task-list { margin: 0 20px; }
+        .task-item { background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--border-light); }
+        .task-icon-box { width: 45px; height: 45px; border-radius: 12px; background: rgba(139, 92, 246, 0.1); color: var(--primary); display: flex; justify-content: center; align-items: center; font-size: 20px;}
+        .task-info { flex: 1; }
+        .task-info h4 { font-size: 14px; margin-bottom: 4px; }
+        .task-info p { font-size: 12px; color: var(--gold); font-weight: 600; }
+        .task-btn-group { display: flex; gap: 8px; flex-direction: column;}
+        .btn-task-start { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .btn-task-verify { background: var(--success); border: none; color: white; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: none; }
+        .btn-task-done { background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: not-allowed; }
+
+        .wallet-tabs { display: flex; gap: 10px; margin: 0 20px 20px; }
+        .w-tab { flex: 1; padding: 12px; text-align: center; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
+        .w-tab.active { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light); }
+        
+        .wd-methods-list { display: flex; flex-direction: column; gap: 10px; margin: 0 20px 20px; }
+        .method-item { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 16px; padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; }
+        .method-item.active { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+        .method-item .method-icon { font-size: 28px; margin-right: 12px; }
+        .method-item .method-info { display: flex; align-items: center; gap: 12px; }
+        .method-item .method-name { font-weight: 600; font-size: 16px; }
+        .method-item .method-desc { font-size: 11px; color: var(--text-muted); }
+        
+        .input-group { margin: 0 20px 15px; }
+        .input-field { width: 100%; background: var(--bg-card); border: 1px solid var(--border-light); padding: 15px; border-radius: 14px; color: white; font-size: 14px; outline: none; }
+        
+        .notification-popup {
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border-left: 4px solid var(--success);
+            border-radius: 16px;
+            padding: 15px;
+            z-index: 1000;
+            transform: translateY(150%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-light);
+        }
+        .notification-popup.show { transform: translateY(0); }
+        .notif-title { font-weight: 700; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+        .notif-time { font-size: 10px; color: var(--text-muted); margin-top: 8px; }
+
+        .profile-hero { text-align: center; margin: 20px 20px 30px; }
+        .prof-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--border-highlight); padding: 4px; margin-bottom: 12px; background: var(--bg-card);}
+        .prof-stats-grid { display: flex; justify-content: space-between; gap: 12px; margin: 20px; background: var(--bg-card); border-radius: 24px; padding: 20px 16px; border: 1px solid var(--border-light); }
+        .prof-stat { flex: 1; text-align: center; background: rgba(255,255,255,0.02); padding: 12px 8px; border-radius: 20px; }
+        .prof-stat .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+        .prof-stat .stat-value { font-size: 22px; font-weight: 800; }
+        .prof-stat .stat-value.gold { color: var(--gold); }
+        .prof-stat .stat-value.success { color: var(--success); }
+        .p-menu-btn { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 18px 20px; border-radius: 16px; margin: 0 20px 10px; border: 1px solid var(--border-light); cursor: pointer; }
+        .profile-links-row { display: flex; gap: 15px; margin: 10px 20px 20px; }
+        .profile-link-card { flex: 1; background: var(--bg-card); border-radius: 20px; padding: 12px; text-align: center; border: 1px solid var(--border-highlight); text-decoration: none; color: white; transition: 0.2s; }
+        .profile-link-card i { font-size: 24px; color: var(--primary); margin-bottom: 6px; display: block; }
+
+        .rules-card { background: var(--bg-card); border-radius: 20px; margin: 20px; padding: 20px; border-left: 3px solid var(--primary); }
+        .rules-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .rules-list { list-style: none; }
+        .rules-list li { margin-bottom: 10px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; color: var(--text-muted); }
+        .rules-list li i { color: var(--primary); margin-top: 2px; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 20px; flex-direction: column; }
+        .overlay.active { display: flex; }
+        .modal-card { background: var(--bg-card); width: 100%; max-width: 350px; border-radius: 24px; padding: 30px 20px; text-align: center; border: 1px solid var(--border-highlight); }
+        
+        .toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: #1F1C33; color: white; padding: 14px 24px; border-radius: 30px; font-size: 13px; z-index: 9999; transition: 0.3s; border: 1px solid var(--border-highlight);}
+        
+        .loader-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 3000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .scan-container { width: 280px; text-align: center; background: rgba(19, 17, 38, 0.6); border-radius: 32px; padding: 30px 20px; border: 1px solid var(--border-highlight); backdrop-filter: blur(4px); }
+        .scan-icon { font-size: 48px; color: var(--primary); animation: pulse 1.8s infinite; background: rgba(139,92,246,0.15); width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 20px auto; }
+        .scan-text { font-family: 'Courier New', monospace; color: #A78BFA; font-size: 13px; margin-bottom: 20px; letter-spacing: 1px; }
+        .scan-bar-bg { width: 100%; height: 6px; background: #2A2744; border-radius: 6px; overflow: hidden; }
+        .scan-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--gold)); width: 0%; transition: width 0.25s ease-out; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.7; } }
+        
+        .channels-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 30px 20px; text-align: center; background: var(--bg-main); }
+        .channels-card { background: var(--bg-card); border-radius: 32px; padding: 25px; width: 100%; max-width: 380px; margin: auto; border: 1px solid var(--border-highlight); }
+        .channel-item { background: rgba(255,255,255,0.03); border-radius: 24px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--border-light); }
+        .channel-icon { width: 50px; height: 50px; background: var(--primary); border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .channel-info { flex: 1; text-align: left; }
+        .channel-name { font-weight: 700; font-size: 16px; }
+        .channel-username { font-size: 12px; color: var(--text-muted); }
+        .join-channel-btn { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px 18px; border-radius: 40px; font-weight: 600; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .join-channel-btn.joined { background: var(--success); border-color: var(--success); color: white; opacity: 0.7; cursor: default; }
+        .join-channel-btn.verifying { background: var(--warning); border-color: var(--warning); color: white; cursor: wait; }
+        .final-join-btn { margin-top: 20px; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); width: 100%; padding: 14px; border-radius: 40px; border: none; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .final-join-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .history-item { background: var(--bg-card); border-radius: 16px; padding: 14px; margin-bottom: 10px; border-left: 3px solid; display: flex; justify-content: space-between; align-items: center; }
+        .history-status.Pending { color: var(--warning); }
+        .history-status.Completed { color: var(--success); }
+        .history-status.Rejected { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+<div id="loader" class="loader-wrap">
+    <div class="scan-container">
+        <div class="scan-icon"><i class="fas fa-hive"></i></div>
+        <div id="scanText" class="scan-text">[ TaskHive Pro ]<br>INITIALIZING...</div>
+        <div class="scan-bar-bg"><div id="scanBar" class="scan-bar-fill"></div></div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="withdrawNotification" class="notification-popup">
+    <div class="notif-title"><i class="fas fa-spinner fa-pulse"></i> Withdrawal Request</div>
+    <div id="notifMsg">Your withdrawal request has been submitted successfully.</div>
+    <div class="notif-time">Payment will be processed within 1-24 hours.</div>
+</div>
+
+<div id="channelsScreen" class="channels-screen">
+    <div class="channels-card">
+        <i class="fas fa-hive" style="font-size: 48px; color: var(--primary); margin-bottom: 15px;"></i>
+        <h2 style="margin-bottom: 20px;">Join Required Channels</h2>
+        <p class="text-muted text-sm" style="margin-bottom: 20px;">Please join all 3 channels to continue</p>
+        <div id="channelsList"></div>
+        <button id="finalJoinBtn" class="final-join-btn" disabled>✔️ I HAVE JOINED ALL</button>
+    </div>
+</div>
+
+<div id="mainApp" style="display: none;">
+    <div id="homeScreen" class="screen active">
+        <div class="app-header"><div class="user-profile-sm"><img id="hAvatar" class="avatar-img"><div><div class="user-name-title" id="hName">Loading...</div><div class="level-badge"><span>⭐ Verified Member</span></div></div></div></div>
+        <div class="balance-hero"><div class="bal-label">Your Balance</div><div class="bal-amount"><span id="hBal">0.00</span> <span class="bal-currency">BDT</span></div><i class="fas fa-wallet wallet-icon-3d"></i></div>
+        <div class="stats-dual"><div class="card stat-box"><div class="stat-box-left"><div class="stat-box-title">Daily Earnings</div><div class="stat-box-val" id="hDailyEarn">0.00</div></div><div class="stat-box-icon"><i class="fas fa-chart-line"></i></div></div><div class="card stat-box"><div class="stat-box-left"><div class="stat-box-title">Total Earned</div><div class="stat-box-val" id="hTotalEarn">0.00</div></div><div class="stat-box-icon"><i class="fas fa-layer-group"></i></div></div></div>
+        <div class="grid-4"><div class="grid-item" onclick="nav('earnScreen')"><i class="fas fa-play"></i><span>Earn</span></div><div class="grid-item" onclick="nav('tasksScreen')"><i class="fas fa-tasks"></i><span>Tasks</span></div><div class="grid-item" onclick="nav('referScreen')"><i class="fas fa-users"></i><span>Referrals</span></div><div class="grid-item" onclick="nav('profileScreen')"><i class="fas fa-user"></i><span>Profile</span></div></div>
+        
+        <div class="rules-card">
+            <div class="rules-title"><i class="fas fa-shield-alt text-gold"></i> Community Rules & Withdrawal Policy</div>
+            <ul class="rules-list">
+                <li><i class="fas fa-users"></i> Minimum 5 Referrals required for withdrawal</li>
+                <li><i class="fas fa-eye"></i> Must watch 20+ ads daily to withdraw</li>
+                <li><i class="fas fa-clock"></i> Withdrawal time: 1-24 hours for payment</li>
+                <li><i class="fas fa-check-circle"></i> 100% guaranteed payment</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="earnScreen" class="screen">
+        <div class="page-header"><button class="btn-back" onclick="nav('homeScreen')"><i class="fas fa-arrow-left"></i></button><span>Watch Ads</span></div>
+        <div class="earn-hero-card"><div><h3>Watch Ads & Earn</h3><p class="text-muted text-sm">0.05 BDT per ad</p></div><i class="fas fa-gift" style="font-size: 50px;"></i></div>
+        <div class="earn-progress"><div class="flex-between"><span class="text-sm text-muted">Daily Progress (Required: 20 for withdrawal)</span><span id="adCurr">0</span>/<span id="adMax">50</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" id="adBar"></div></div></div>
+        <button class="btn-primary" id="btnWatchAd" style="margin: 0 20px 20px; width: calc(100% - 40px);" onclick="watchAd()"><i class="fas fa-play"></i> Watch Ad & Earn</button>
+        <div id="adTimer" style="display:none; text-align:center; font-size: 24px; font-weight: bold; color: var(--primary); margin: 0 20px 20px; background: #131126; padding: 15px; border-radius: 40px;">00:10</div>
+    </div>
+
+    <div id="tasksScreen" class="screen">
+        <div class="page-header"><button class="btn-back" onclick="nav('homeScreen')"><i class="fas fa-arrow-left"></i></button><span>Active Tasks</span><i class="fas fa-sync" onclick="loadTasks()" style="cursor:pointer;"></i></div>
+        <div class="task-list" id="tasksContainer"><div class="text-muted text-center" style="padding:20px;">Loading tasks...</div></div>
+    </div>
+
+    <div id="referScreen" class="screen">
+        <div class="page-header"><button class="btn-back" onclick="nav('homeScreen')"><i class="fas fa-arrow-left"></i></button><span>Referrals</span></div>
+        <div style="text-align: center; margin: 20px;"><i class="fas fa-user-friends" style="font-size: 70px; color: var(--primary);"></i><h2>Invite Friends</h2><p class="text-muted">Earn 1.00 BDT per invite</p></div>
+        <div class="card" style="margin: 0 20px;"><div class="text-muted text-sm">Your Referral Link</div><div class="flex-between" style="background: #0F0E1A; padding: 15px; border-radius: 12px;"><span id="refLinkTxt" style="font-size: 12px; word-break:break-all;"></span><i class="fas fa-copy" style="color: var(--primary); cursor: pointer;" onclick="copyLink()"></i></div><div style="display: flex; gap: 15px; margin-top: 20px;"><div style="flex:1; text-align:center;"><div class="text-muted text-sm">Total Refs</div><div style="font-size: 20px; font-weight: bold;" id="rTotalCount">0</div></div><div style="flex:1; text-align:center;"><div class="text-muted text-sm">Earnings</div><div class="text-gold" style="font-size: 20px; font-weight: bold;"><span id="rTotalEarn">0.00</span> BDT</div></div></div></div>
+    </div>
+
+    <div id="walletScreen" class="screen">
+        <div class="page-header"><button class="btn-back" onclick="nav('homeScreen')"><i class="fas fa-arrow-left"></i></button><span>Wallet</span></div>
+        <div class="balance-hero" style="padding: 20px;"><div class="bal-label">Available Balance</div><div class="bal-amount"><span id="wBal">0.00</span> BDT</div></div>
+        <div class="wallet-tabs">
+            <div class="w-tab active" onclick="switchWdTab('withdraw')">Withdraw</div>
+            <div class="w-tab" onclick="switchWdTab('hist')">History</div>
+        </div>
+        <div id="wdWithdrawPanel">
+            <div class="wd-methods-list">
+                <div class="method-item active" onclick="selMeth(this, 'bKash')"><div class="method-info"><i class="fab fa-battle-net method-icon"></i><div><div class="method-name">bKash</div><div class="method-desc">Mobile Banking</div></div></div><div class="text-xs text-muted">Min 10 BDT</div></div>
+                <div class="method-item" onclick="selMeth(this, 'Binance')"><div class="method-info"><i class="fab fa-bitcoin method-icon"></i><div><div class="method-name">Binance</div><div class="method-desc">USDT / Crypto</div></div></div><div class="text-xs text-muted">Min 10 BDT</div></div>
+                <div class="method-item" onclick="selMeth(this, 'Nagad')"><div class="method-info"><i class="fas fa-mobile-alt method-icon"></i><div><div class="method-name">Nagad</div><div class="method-desc">Mobile Banking</div></div></div><div class="text-xs text-muted">Min 10 BDT</div></div>
+            </div>
+            <div class="input-group"><input type="number" id="wAmt" class="input-field" placeholder="Enter Amount (Min 10 BDT)"></div>
+            <div class="input-group"><input type="text" id="wAcc" class="input-field" placeholder="Account Number / Wallet ID"></div>
+            <button id="btnRequestWithdraw" class="btn-large" onclick="reqWd()" style="margin:0 20px 20px; width: calc(100% - 40px);">Request Withdrawal</button>
+        </div>
+        <div id="wdHistoryPanel" style="display:none; margin: 0 20px;">
+            <div id="historyList" class="history-list">Loading...</div>
+        </div>
+    </div>
+
+    <div id="profileScreen" class="screen">
+        <div class="page-header"><span>Profile Overview</span></div>
+        <div class="profile-hero"><img id="pAvatar" class="prof-avatar"><h2 id="pName"></h2><p id="pUser" style="color: var(--primary);"></p><p style="font-size: 12px; color: var(--text-muted);">ID: <span id="pId"></span></p></div>
+        <div class="profile-links-row">
+            <a href="https://t.me/TaskHiveEarnOfficial" target="_blank" class="profile-link-card"><i class="fab fa-telegram"></i><span>Official Channel</span></a>
+            <a href="https://t.me/All_PaymentBot25" target="_blank" class="profile-link-card"><i class="fas fa-money-bill-wave"></i><span>Payment Admin</span></a>
+        </div>
+        <div class="prof-stats-grid"><div class="prof-stat"><div class="stat-label">Total Earned</div><div class="stat-value gold" id="pTotEarn">0</div></div><div class="prof-stat"><div class="stat-label">Total Withdraw</div><div class="stat-value success" id="pTotWd">0</div></div><div class="prof-stat"><div class="stat-label">Referrals</div><div class="stat-value" id="pRefs">0</div></div></div>
+        <div class="prof-menu"><div class="p-menu-btn" onclick="openPromo()"><div><i class="fas fa-gift text-gold"></i> Redeem Promo Code</div><i class="fas fa-chevron-right"></i></div></div>
+    </div>
+
+    <div class="bottom-nav"><div class="nav-item active" data-nav="homeScreen" onclick="nav('homeScreen')"><i class="fas fa-home"></i><span>Home</span></div><div class="nav-item" data-nav="earnScreen" onclick="nav('earnScreen')"><i class="fas fa-play-circle"></i><span>Earn</span></div><div class="nav-item" data-nav="tasksScreen" onclick="nav('tasksScreen')"><i class="fas fa-tasks"></i><span>Tasks</span></div><div class="nav-item" data-nav="walletScreen" onclick="nav('walletScreen')"><i class="fas fa-wallet"></i><span>Wallet</span></div><div class="nav-item" data-nav="profileScreen" onclick="nav('profileScreen')"><i class="fas fa-user"></i><span>Profile</span></div></div>
+</div>
+
+<div id="promoModal" class="overlay"><div class="modal-card"><i class="fas fa-times" style="position:absolute; top:20px; right:20px; cursor:pointer;" onclick="closePromo()"></i><i class="fas fa-gift" style="font-size: 50px; color: var(--gold); margin-bottom: 15px;"></i><h3>Redeem Code</h3><input type="text" id="promoInput" class="input-field" placeholder="Enter Code" style="margin: 15px 0;"><button class="btn-primary" onclick="submitPromoCode()">Apply</button></div></div>
+
+<script>
+    const BOT_USER = "TaskHiveEarnadsbot";
+    const AD_REWARD = 0.05, DAILY_LIMIT = 50, MIN_WITHDRAW = 10, REF_REWARD = 1.00, WD_REQ_REFS = 5, WD_REQ_DAILY_ADS = 20;
+    
+    const REQUIRED_CHANNELS = [
+        { name: "TaskHive Official", username: "TaskHiveEarnOfficial", link: "https://t.me/TaskHiveEarnOfficial", icon: "fab fa-telegram" },
+        { name: "Earn With Hive", username: "Crypto_Bd25", link: "https://t.me/Crypto_Bd25", icon: "fas fa-hive" },
+        { name: "BD Task Community", username: "All_PaymentBot25", link: "https://t.me/All_PaymentBot25", icon: "fas fa-users" }
+    ];
+
+    const DEFAULT_TASKS = [
+        { id: "task1", title: "Join Our Telegram Channel", reward: 0.50, link: "https://t.me/TaskHiveEarnOfficial" },
+        { id: "task2", title: "Follow on Twitter", reward: 0.75, link: "https://twitter.com" },
+        { id: "task3", title: "Subscribe on YouTube", reward: 1.00, link: "https://youtube.com" },
+        { id: "task4", title: "Share on Facebook", reward: 0.50, link: "https://facebook.com" }
+    ];
+
+    const PROMO_CODES = {
+        "WELCOME50": { reward: 5.00, limit: 100, uses: 0 },
+        "TASKHIVE10": { reward: 10.00, limit: 50, uses: 0 },
+        "BONUS25": { reward: 2.50, limit: 200, uses: 0 }
+    };
+
+    let currentUser = {
+        id: "", name: "", username: "", balanceTaka: 0, totalEarnedTaka: 0, totalWithdrawnTaka: 0,
+        adsWatched: 0, refs: 0, refEarnedTaka: 0, referrer: null, lastAdDate: "", adsWatchedToday: 0,
+        completedTasks: [], usedGiftCodes: [], joined: false, joinedChannels: [], history: [],
+        tasks: []
+    };
+    
+    let adPlaying = false, adTimerInt = null;
+    let selectedMethod = "bKash";
+
+    function toast(msg) { 
+        let t = document.getElementById('toast'); 
+        t.innerText = msg; 
+        t.style.top = "20px"; 
+        setTimeout(() => t.style.top = "-100px", 2500); 
+    }
+    
+    function fmt(n) { return parseFloat(n).toFixed(2); }
+    function todayStr() { return new Date().toDateString(); }
+
+    function saveUser() {
+        localStorage.setItem(`taskhive_user_${currentUser.id}`, JSON.stringify(currentUser));
+    }
+
+    function loadUser(uid) {
+        let saved = localStorage.getItem(`taskhive_user_${uid}`);
+        if(saved) {
+            let data = JSON.parse(saved);
+            currentUser = { ...currentUser, ...data };
+            if(!currentUser.completedTasks) currentUser.completedTasks = [];
+            if(!currentUser.usedGiftCodes) currentUser.usedGiftCodes = [];
+            if(!currentUser.joinedChannels) currentUser.joinedChannels = [];
+            if(!currentUser.history) currentUser.history = [];
+            if(!currentUser.tasks) currentUser.tasks = [...DEFAULT_TASKS];
+        }
+        if(currentUser.lastAdDate !== todayStr()) {
+            currentUser.adsWatchedToday = 0;
+            currentUser.lastAdDate = todayStr();
+            saveUser();
+        }
+    }
+
+    function syncUI() {
+        let av = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=8B5CF6&color=fff&bold=true`;
+        document.getElementById('hAvatar').src = av;
+        document.getElementById('pAvatar').src = av;
+        document.getElementById('hName').innerText = currentUser.name;
+        document.getElementById('pName').innerText = currentUser.name;
+        document.getElementById('pUser').innerText = `@${currentUser.username}`;
+        document.getElementById('pId').innerText = currentUser.id;
+        document.getElementById('hBal').innerText = fmt(currentUser.balanceTaka);
+        document.getElementById('wBal').innerText = fmt(currentUser.balanceTaka);
+        document.getElementById('hDailyEarn').innerText = fmt(currentUser.adsWatchedToday * AD_REWARD);
+        document.getElementById('hTotalEarn').innerText = fmt(currentUser.totalEarnedTaka);
+        document.getElementById('pTotEarn').innerText = fmt(currentUser.totalEarnedTaka);
+        document.getElementById('pTotWd').innerText = fmt(currentUser.totalWithdrawnTaka);
+        document.getElementById('pRefs').innerText = currentUser.refs;
+        document.getElementById('adCurr').innerText = currentUser.adsWatchedToday;
+        document.getElementById('adMax').innerText = DAILY_LIMIT;
+        document.getElementById('adBar').style.width = Math.min((currentUser.adsWatchedToday/DAILY_LIMIT)*100,100)+"%";
+        let refLink = `https://t.me/${BOT_USER}/app?startapp=${currentUser.id}`;
+        document.getElementById('refLinkTxt').innerText = refLink;
+        document.getElementById('rTotalCount').innerText = currentUser.refs;
+        document.getElementById('rTotalEarn').innerText = fmt(currentUser.refEarnedTaka);
+    }
+
+    window.watchAd = () => {
+        if(adPlaying) return toast("Ad in progress...");
+        if(currentUser.adsWatchedToday >= DAILY_LIMIT) return toast("Daily limit reached!");
+        adPlaying = true;
+        document.getElementById('btnWatchAd').style.display = 'none';
+        let tmr = document.getElementById('adTimer');
+        tmr.style.display = 'block';
+        let t = 10;
+        tmr.innerText = `00:${t}`;
+        if(adTimerInt) clearInterval(adTimerInt);
+        adTimerInt = setInterval(() => {
+            t--;
+            tmr.innerText = t<10 ? `00:0${t}` : `00:${t}`;
+            if(t<=0){
+                clearInterval(adTimerInt);
+                tmr.style.display='none';
+                document.getElementById('btnWatchAd').style.display='block';
+                currentUser.balanceTaka += AD_REWARD;
+                currentUser.totalEarnedTaka += AD_REWARD;
+                currentUser.adsWatched++;
+                currentUser.adsWatchedToday++;
+                currentUser.lastAdDate = todayStr();
+                saveUser();
+                syncUI();
+                toast(`+${AD_REWARD} BDT Earned!`);
+                adPlaying=false;
+            }
+        }, 1000);
+    };
+
+    window.loadTasks = () => {
+        let container = document.getElementById('tasksContainer');
+        if(!currentUser.tasks) currentUser.tasks = [...DEFAULT_TASKS];
+        let completed = currentUser.completedTasks || [];
+        let html = '';
+        currentUser.tasks.forEach(task => {
+            let isCompleted = completed.includes(task.id);
+            html += `<div class="task-item">
+                        <div class="task-icon-box"><i class="fas fa-bolt"></i></div>
+                        <div class="task-info">
+                            <h4>${task.title}</h4>
+                            <p>+${fmt(task.reward)} BDT</p>
+                        </div>
+                        <div class="task-btn-group">
+                            ${isCompleted ? 
+                                `<button class="btn-task-done" disabled><i class="fas fa-check"></i> Done</button>` :
+                                `<button id="tb_${task.id}" class="btn-task-start" onclick="startTask('${task.id}','${task.link}')">Start</button>
+                                 <button id="vb_${task.id}" class="btn-task-verify" onclick="verifyTask('${task.id}',${task.reward})">Verify</button>`
+                            }
+                        </div>
+                    </div>`;
+        });
+        container.innerHTML = html;
+    };
+
+    window.startTask = (id, link) => {
+        window.open(link, '_blank');
+        document.getElementById(`tb_${id}`).style.display = 'none';
+        document.getElementById(`vb_${id}`).style.display = 'block';
+        toast("Complete the task, then click Verify!");
+    };
+
+    window.verifyTask = (id, reward) => {
+        let completed = currentUser.completedTasks || [];
+        if(!completed.includes(id)){
+            completed.push(id);
+            currentUser.completedTasks = completed;
+            currentUser.balanceTaka += reward;
+            currentUser.totalEarnedTaka += reward;
+            saveUser();
+            syncUI();
+            loadTasks();
+            toast(`+${reward} BDT Verified!`);
+        }
+    };
+
+    window.selMeth = (el, m) => {
+        document.querySelectorAll('.method-item').forEach(x=>x.classList.remove('active'));
+        el.classList.add('active');
+        selectedMethod = m;
+        document.getElementById('wAcc').placeholder = `${m} Account Number`;
+    };
+
+    window.reqWd = () => {
+        let amt = parseFloat(document.getElementById('wAmt').value);
+        let acc = document.getElementById('wAcc').value.trim();
+        if(!amt || !acc) return toast("Fill all fields");
+        if(amt < MIN_WITHDRAW) return toast(`Min ${MIN_WITHDRAW} BDT`);
+        if(amt > currentUser.balanceTaka) return toast("Insufficient balance");
+        if(currentUser.refs < WD_REQ_REFS) return toast(`Need ${WD_REQ_REFS} referrals (You have ${currentUser.refs})`);
+        if(currentUser.adsWatchedToday < WD_REQ_DAILY_ADS) return toast(`Watch ${WD_REQ_DAILY_ADS} ads today (Watched: ${currentUser.adsWatchedToday})`);
+        
+        let newBalance = currentUser.balanceTaka - amt;
+        let newTotalWithdrawn = currentUser.totalWithdrawnTaka + amt;
+        let dateObj = new Date();
+        let dateStr = dateObj.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + ' ' + dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        
+        let historyItem = {
+            amount: amt,
+            method: selectedMethod,
+            account: acc,
+            status: "Pending",
+            date: dateStr
+        };
+        
+        if(!currentUser.history) currentUser.history = [];
+        currentUser.history.unshift(historyItem);
+        currentUser.balanceTaka = newBalance;
+        currentUser.totalWithdrawnTaka = newTotalWithdrawn;
+        saveUser();
+        syncUI();
+        
+        document.getElementById('wAmt').value = '';
+        document.getElementById('wAcc').value = '';
+        
+        let notif = document.getElementById('withdrawNotification');
+        document.getElementById('notifMsg').innerHTML = `🎉 ${fmt(amt)} BDT withdrawal requested via ${selectedMethod}. <strong>Pending approval.</strong><br>You will receive payment within <strong>1-24 hours</strong>.`;
+        notif.classList.add('show');
+        setTimeout(() => notif.classList.remove('show'), 5000);
+        toast("✅ Withdrawal Requested Successfully!");
+        
+        if(document.getElementById('wdHistoryPanel').style.display === 'block') loadHistory();
+    };
+
+    window.loadHistory = () => {
+        let container = document.getElementById('historyList');
+        let history = currentUser.history || [];
+        if(history.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center">No withdrawal history</div>';
+            return;
+        }
+        let html = '';
+        history.forEach(h => {
+            let statusClass = `history-status ${h.status}`;
+            let borderColor = h.status === 'Completed' ? 'var(--success)' : (h.status === 'Rejected' ? 'var(--danger)' : 'var(--warning)');
+            html += `<div class="history-item" style="border-left-color: ${borderColor}">
+                        <div><div class="font-bold">${h.amount} BDT</div>
+                        <div class="text-sm text-muted">${h.method} | ${h.account}</div>
+                        <div class="text-sm text-muted">${h.date}</div></div>
+                        <div class="${statusClass}">${h.status || 'Pending'}</div>
+                    </div>`;
+        });
+        container.innerHTML = html;
+    };
+
+    window.switchWdTab = (tab) => {
+        document.querySelectorAll('.w-tab').forEach(t => t.classList.remove('active'));
+        if(tab === 'withdraw') {
+            document.querySelector('.w-tab:first-child').classList.add('active');
+            document.getElementById('wdWithdrawPanel').style.display = 'block';
+            document.getElementById('wdHistoryPanel').style.display = 'none';
+        } else {
+            document.querySelector('.w-tab:last-child').classList.add('active');
+            document.getElementById('wdWithdrawPanel').style.display = 'none';
+            document.getElementById('wdHistoryPanel').style.display = 'block';
+            loadHistory();
+        }
+    };
+
+    window.copyLink = () => {
+        let link = document.getElementById('refLinkTxt').innerText;
+        navigator.clipboard.writeText(link);
+        toast("Link Copied!");
+    };
+
+    window.openPromo = () => document.getElementById('promoModal').classList.add('active');
+    window.closePromo = () => document.getElementById('promoModal').classList.remove('active');
+
+    window.submitPromoCode = () => {
+        let code = document.getElementById('promoInput').value.trim().toUpperCase();
+        if(!code) return toast("Enter code");
+        let used = currentUser.usedGiftCodes || [];
+        if(used.includes(code)) return toast("Already used");
+        let promo = PROMO_CODES[code];
+        if(!promo) return toast("Invalid code");
+        if(promo.uses >= promo.limit) return toast("Code limit reached");
+        
+        promo.uses++;
+        used.push(code);
+        currentUser.usedGiftCodes = used;
+        currentUser.balanceTaka += promo.reward;
+        currentUser.totalEarnedTaka += promo.reward;
+        saveUser();
+        syncUI();
+        toast(`+${promo.reward} BDT Added!`);
+        closePromo();
+        document.getElementById('promoInput').value = '';
+    };
+
+    function renderChannels() {
+        let container = document.getElementById('channelsList');
+        let joined = currentUser.joinedChannels || [];
+        let html = '';
+        REQUIRED_CHANNELS.forEach(ch => {
+            let isJoined = joined.includes(ch.username);
+            html += `<div class="channel-item">
+                        <div class="channel-icon"><i class="${ch.icon}"></i></div>
+                        <div class="channel-info">
+                            <div class="channel-name">${ch.name}</div>
+                            <div class="channel-username">@${ch.username}</div>
+                        </div>
+                        <button class="join-channel-btn ${isJoined ? 'joined' : ''}" data-chan="${ch.username}" data-link="${ch.link}">
+                            ${isJoined ? '✅ Joined' : '➕ Join'}
+                        </button>
+                    </div>`;
+        });
+        container.innerHTML = html;
+        
+        document.querySelectorAll('.join-channel-btn:not(.joined)').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if(btn.classList.contains('joined') || btn.classList.contains('verifying')) return;
+                let chanUsername = btn.getAttribute('data-chan');
+                let link = btn.getAttribute('data-link');
+                window.open(link, '_blank');
+                toast(`📢 Please join @${chanUsername}, then click Join again after 5 seconds...`);
+                btn.classList.add('verifying');
+                btn.innerHTML = '⏳ Wait 5s';
+                setTimeout(() => {
+                    let joinedList = currentUser.joinedChannels || [];
+                    if(!joinedList.includes(chanUsername)) {
+                        joinedList.push(chanUsername);
+                        currentUser.joinedChannels = joinedList;
+                        saveUser();
+                        btn.classList.remove('verifying');
+                        btn.classList.add('joined');
+                        btn.innerHTML = '✅ Joined';
+                        toast(`✅ Verified @${chanUsername}!`);
+                        updateFinalJoinButton();
+                        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+                        if(allJoined) {
+                            toast("🎉 All channels joined! Redirecting...");
+                            setTimeout(() => proceedToMainApp(), 1500);
+                        }
+                    }
+                }, 5000);
+            });
+        });
+        updateFinalJoinButton();
+    }
+
+    function updateFinalJoinButton() {
+        let finalBtn = document.getElementById('finalJoinBtn');
+        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+        finalBtn.disabled = !allJoined;
+        finalBtn.innerHTML = allJoined ? "✅ ALL CHANNELS JOINED! CONTINUE →" : "📢 JOIN ALL CHANNELS FIRST";
+    }
+
+    function proceedToMainApp() {
+        if(!currentUser.joined) {
+            currentUser.joined = true;
+            saveUser();
+        }
+        document.getElementById('channelsScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        syncUI();
+        loadTasks();
+        toast(`🎉 Welcome ${currentUser.name}! Start earning now!`);
+    }
+
+    document.getElementById('finalJoinBtn')?.addEventListener('click', () => {
+        let allJoined = REQUIRED_CHANNELS.every(ch => (currentUser.joinedChannels || []).includes(ch.username));
+        if(!allJoined) {
+            toast("❌ Please join all channels first! Click each 'Join' button and wait for verification.");
+            return;
+        }
+        proceedToMainApp();
+    });
+
+    function nav(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        let tn = document.querySelector(`.nav-item[data-nav="${id}"]`);
+        if(tn) tn.classList.add('active');
+        if(id === 'tasksScreen') loadTasks();
+        if(id === 'walletScreen') loadHistory();
+    }
+    window.nav = nav;
+
+    function doLoadingAnim(cb) {
+        let p = 0;
+        let texts = ["[ TaskHive Pro ]", "CONNECTING TO SERVER", "LOADING USER DATA", "ACCESS GRANTED"];
+        let int = setInterval(() => {
+            p += 25;
+            document.getElementById('scanBar').style.width = p + "%";
+            document.getElementById('scanText').innerHTML = texts[Math.floor(p/25)] || texts[3];
+            if(p >= 100) {
+                clearInterval(int);
+                setTimeout(cb, 400);
+            }
+        }, 350);
+    }
+
+    doLoadingAnim(() => {
+        document.getElementById('loader').style.display = 'none';
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        let tgu = tg.initDataUnsafe?.user;
+        let uid = tgu ? tgu.id.toString() : "user_" + Math.floor(Math.random() * 100000);
+        let unm = tgu ? tgu.first_name : "User";
+        let uusr = tgu ? (tgu.username || uid) : uid;
+        let sparam = tg.initDataUnsafe?.start_param;
+        
+        currentUser.id = uid;
+        currentUser.name = unm;
+        currentUser.username = uusr;
+        
+        loadUser(uid);
+        
+        if(!localStorage.getItem(`taskhive_user_${uid}`)) {
+            if(sparam && sparam !== uid) {
+                let referrerData = localStorage.getItem(`taskhive_user_${sparam}`);
+                if(referrerData) {
+                    let referrer = JSON.parse(referrerData);
+                    referrer.refs = (referrer.refs || 0) + 1;
+                    referrer.refEarnedTaka = (referrer.refEarnedTaka || 0) + REF_REWARD;
+                    referrer.balanceTaka = (referrer.balanceTaka || 0) + REF_REWARD;
+                    localStorage.setItem(`taskhive_user_${sparam}`, JSON.stringify(referrer));
+                }
+            }
+            currentUser.refs = 0;
+            currentUser.refEarnedTaka = 0;
+            currentUser.balanceTaka = 0;
+            currentUser.totalEarnedTaka = 0;
+            currentUser.totalWithdrawnTaka = 0;
+            currentUser.adsWatchedToday = 0;
+            currentUser.adsWatched = 0;
+            currentUser.completedTasks = [];
+            currentUser.usedGiftCodes = [];
+            currentUser.joinedChannels = [];
+            currentUser.joined = false;
+            currentUser.lastAdDate = todayStr();
+            currentUser.history = [];
+            currentUser.tasks = [...DEFAULT_TASKS];
+            saveUser();
+        }
+        
+        if(!currentUser.joined) {
+            document.getElementById('channelsScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            renderChannels();
+        } else {
+            document.getElementById('channelsScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            syncUI();
+            loadTasks();
+        }
+        
+        if(!currentUser.joined) toast(`👋 Hi ${currentUser.name}! Join the channels to continue.`);
+    });
+</script>
+</body>
+</html>
