@@ -240,7 +240,7 @@ const firebaseConfig = { apiKey: "AIzaSyCNMwLfpD2N4gXkQOKM0sqSjcM1hdR7oE4", auth
                 earningWalletBalance = parseFloat(localStorage.getItem(`earningWallet_${tgUser.id}`) || '0');
                 
                 renderUI(); setupNavigation(); setupEventListeners();
-                updateProgress(100);
+                updateProgress(10);
 
                 setTimeout(() => {
                     document.getElementById('app-loader').style.display = 'none';
