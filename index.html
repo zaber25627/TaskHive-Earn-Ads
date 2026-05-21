@@ -13,7 +13,7 @@
             /* Professional Color Palette - Light Theme Base */
             --font-family: 'Poppins', sans-serif;
             --primary-color: #D32F2F; /* Deep Red */
-            --primary-gradient: linear-gradient(135deg, #D32F2F 0%, #B71C1C 100%);
+            --primary-gradient: inear-gradient(135deg, #D32F2F 0%, #B71C1C 100%);
             --secondary-color: #FFC107; /* Premium Gold */
             --bg-color: #F4F6F8;
             --surface-color: #FFFFFF;
@@ -110,6 +110,23 @@
             letter-spacing: 0.5px;
             min-height: 20px;
         }
+
+        /* --- DEVICE BAN OVERLAY --- */
+        #device-ban-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff;
+            z-index: 10000; /* Highest priority */
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+        }
+        .ban-icon { font-size: 60px; color: var(--danger); margin-bottom: 20px; animation: shake 0.5s ease-in-out; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
+        .ban-title { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; }
+        .ban-msg { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; }
 
         /* --- CHANNEL CHECK OVERLAY --- */
         #channel-check-overlay {
@@ -310,6 +327,19 @@
         </div>
     </div>
 
+    <!-- Device Ban Overlay -->
+    <div id="device-ban-overlay">
+        <i class="fas fa-user-lock ban-icon"></i>
+        <h2 class="ban-title">Access Denied</h2>
+        <p class="ban-msg">
+            <strong>Multi-accounting is not allowed.</strong><br><br>
+            This device is already registered to another account. You can only use one account per device.
+        </p>
+        <div style="margin-top: 30px; font-size: 0.8rem; color: #9CA3AF;">
+            Device ID: <span id="display-device-id"></span>
+        </div>
+    </div>
+
     <!-- Channel Check Overlay -->
     <div id="channel-check-overlay">
         <div style="margin-bottom: 30px;">
@@ -434,11 +464,25 @@
             { id: 'ch3', link: 'https://t.me/+e-i_yS2tTiUzZWFl', name: 'Luxora Community' }
         ];
 
+        // --- DEVICE ID SYSTEM ---
+        const getDeviceId = () => {
+            let did = localStorage.getItem('luxora_device_id');
+            if (!did) {
+                // Generate a random ID if not exists
+                did = 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('luxora_device_id', did);
+            }
+            return did;
+        };
+        const myDeviceId = getDeviceId();
+        // --------------------------
+
         const popup = document.getElementById('popup');
         const popupBody = document.getElementById('popup-body');
         const loadingProgress = document.getElementById('loading-progress');
         const loadingStatus = document.getElementById('loading-status');
         const channelOverlay = document.getElementById('channel-check-overlay');
+        const banOverlay = document.getElementById('device-ban-overlay');
 
         const showPopup = (content) => { popupBody.innerHTML = content; popup.style.display = 'flex'; };
         const closePopup = () => { popup.style.display = 'none'; };
@@ -479,10 +523,18 @@
                 renderChannelOverlay(channelsToJoin);
 
                 updateProgress(40, "Syncing User Data...");
+                
+                // --- DEVICE CHECK & LOAD USER ---
                 await loadUserData(db); 
                 
+                if (document.getElementById('device-ban-overlay').style.display === 'flex') {
+                    // If banned, stop initialization
+                    document.getElementById('app-loader').style.display = 'none';
+                    return;
+                }
+                // --------------------------------
+
                 // CRITICAL CHECK: One-time Verification
-                // If user has already joined channels in DB, we skip the overlay later.
                 if (userState.channelsJoined) {
                     isChannelsVerified = true;
                 }
@@ -532,6 +584,28 @@
             let userData = snapshot.val();
             
             if (!userData) {
+                // --- NEW USER CREATION LOGIC WITH DEVICE CHECK ---
+                
+                // Check if this deviceId is already registered to another account
+                const deviceQuery = await db.ref('users').orderByChild('deviceId').equalTo(myDeviceId).once('value');
+                
+                if (deviceQuery.exists()) {
+                    let isDeviceOwner = false;
+                    deviceQuery.forEach(child => {
+                        if (child.key === tgUser.id.toString()) {
+                            isDeviceOwner = true; // It's actually me, just cleared cache or something
+                        }
+                    });
+
+                    if (!isDeviceOwner) {
+                        // Device belongs to someone else
+                        document.getElementById('display-device-id').textContent = myDeviceId;
+                        document.getElementById('device-ban-overlay').style.display = 'flex';
+                        return; // Stop user creation
+                    }
+                }
+                
+                // Safe to create user
                 const startParam = tg.initDataUnsafe.start_param;
                 const referralId = (startParam && !isNaN(startParam)) ? startParam : null;
                 
@@ -541,7 +615,8 @@
                     balance: 0, referrals: 0, referredBy: referralId, totalEarned: 0, 
                     lifetimeAdCount: 0, lastAdWatchDate: '1970-01-01', dailyAdCount: 0, 
                     breakUntil: 0, completedTasks: {}, welcomed: false,
-                    channelsJoined: false // Default false for new users
+                    channelsJoined: false,
+                    deviceId: myDeviceId // LINK DEVICE ID
                 };
                 await userRef.set(userData);
                 
@@ -560,6 +635,26 @@
                         await referrerRef.child('referrals').set(firebase.database.ServerValue.increment(1));
                     }
                 }
+            } else {
+                // --- EXISTING USER UPDATE ---
+                // If user exists but has no deviceId (from older version), update it now
+                if (!userData.deviceId) {
+                    await userRef.update({ deviceId: myDeviceId });
+                    userData.deviceId = myDeviceId;
+                }
+                
+                // Optional: Strict Mode. If user exists, but their stored deviceId != current deviceId
+                // This could mean they switched phones. 
+                // For now, we allow login but update the deviceId to the NEW device.
+                // If you want to lock them to the FIRST device ever used, uncomment below:
+                /*
+                else if (userData.deviceId !== myDeviceId) {
+                    // User is trying to login from a different device than registered
+                     document.getElementById('display-device-id').textContent = `${myDeviceId} (New) vs ${userData.deviceId} (Old)`;
+                     document.getElementById('device-ban-overlay').style.display = 'flex';
+                     return;
+                }
+                */
             }
             
             const today = new Date().toISOString().slice(0, 10);
